@@ -1,5 +1,5 @@
 MCU       ?= atmega328p
-F_CPU     ?= 16000000
+F_CPU     ?= 14745600
 AVR_CC       ?= avr-gcc
 AVR_OBJCOPY  ?= avr-objcopy
 AVR_SIZE     ?= avr-size
@@ -11,8 +11,8 @@ SOURCES := \
 	src/Discharging.c \
 	src/twi.c \
 	src/ina233.c \
-	src/Encoder.c \
-	src/Buzzer.c \
+	src/encoder.c \
+	src/buzzer.c \
 	src/OLED_Screen.c
 
 HEADERS := \
@@ -21,8 +21,8 @@ HEADERS := \
 	include/Discharging.h \
 	include/twi.h \
 	include/ina233.h \
-	include/Encoder.h \
-	include/Buzzer.h \
+	include/encoder.h \
+	include/buzzer.h \
 	include/OLED_Screen.h
 
 CFLAGS := -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL -std=gnu11 -Os \

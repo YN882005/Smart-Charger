@@ -1,27 +1,22 @@
 # ATmega328P Smart Charger Firmware
 
-This repository contains an AVR-GCC project for an ATmega328P, INA233, I2C
-OLED, HW-040 rotary encoder, and 2.3 kHz buzzer. It is **monitor-only and
-non-charging**. All four charge outputs are held high, all four discharge
-outputs are held low, and there is intentionally no path that enables a power
-stage.
+This repository contains an AVR-GCC project for an ATmega328P-PU, two INA233
+sensors, an I2C OLED, an HW-040 rotary encoder, and a 2.304 kHz buzzer. It is
+**monitor-only**: charge outputs are held high, discharge outputs are held
+low, and the firmware has no path that enables a power stage.
 
 ## Schematic pin mapping
 
-- The firmware assumes a 16 MHz ATmega328P clock; override `F_CPU` in the
-  Makefile if the board clock differs.
-- The schematic maps CHG1-4 to PB1, PB2, PB3, and PD3; DSG1-4 map to PB0,
-  PB5, PB4, and PC0, respectively. Firmware initializes each output to its
-  inactive level before enabling the output driver.
-- Connect the INA233 and OLED to the shared I2C bus: PC4/SDA and PC5/SCL.
-  INA233 defaults to address `0x40`; the OLED defaults to `0x3C`. Confirm the
-  address straps, display controller compatibility (SSD1306), and bus
-  pull-ups.
-- The HW-040 signals in the schematic are CLK=PC1, DT=PC2, and switch/Alert=PD5.
-  The firmware enables internal pull-ups and uses pin-change interrupts for
-  rotation.
-- The buzzer control net is PD4. The firmware generates a 2.3 kHz tone using
-  Timer2; the schematic's transistor stage must drive the 5 V buzzer.
+- The default clock is the specified 14.7456 MHz external crystal; override
+  `F_CPU` only if the board clock differs.
+- CH1 uses INA233 address `0x40` and CH2 uses `0x45`. Both use the specified
+  33.333 mOhm shunt. CH3 and CH4 are not sampled.
+- Connect both sensors and the OLED to PC4/SDA and PC5/SCL. The OLED address
+  is `0x3C`; confirm its SSD1306 compatibility and the specified bus pull-ups.
+- The encoder uses CLK=PC1, DT=PC2, and switch=PC3. The shared active-low
+  INA233 ALERT line is on PD5. Encoder inputs use internal pull-ups.
+- The buzzer is on PD4 and generates 2.304 kHz tones for 400 ms on menu
+  transitions.
 
 Verify output polarity and the complete gate-driver schematic before
 programming. Add external pull resistors so every charge/discharge stage
@@ -59,19 +54,25 @@ actual clock and reset configuration.
 - `include/config.h`: board and safe-default configuration.
 - `include/Charging.h`, `src/Charging.c`: charging stage output initialization and safe-off controls.
 - `include/Discharging.h`, `src/Discharging.c`: discharging stage output initialization and safe-off controls.
-- `include/Encoder.h`, `src/Encoder.c`: debounced rotary encoder and switch input.
-- `include/Buzzer.h`, `src/Buzzer.c`: non-blocking Timer2 buzzer tone.
-- `include/OLED Screen.h`, `src/OLED Screen.c`: OLED screen driver and telemetry display pages.
+- `include/encoder.h`, `src/encoder.c`: debounced rotary encoder, switch, and double-press detection.
+- `include/buzzer.h`, `src/buzzer.c`: non-blocking Timer2 buzzer tone.
+- `include/OLED_Screen.h`, `src/OLED_Screen.c`: OLED screen driver, telemetry, and menu UI.
 - `include/twi.h`, `src/twi.c`: bounded-timeout AVR TWI master, word/byte/block transfers, and PMBus primitives.
 - `include/ina233.h`, `src/ina233.c`: INA233 PMBus driver, calibration, register sampling, and unit conversion.
 - `src/main.c`: safe initialization, polling, and UI service.
 
-The OLED provides three screens navigated with the rotary encoder:
-1. System status and charger safe-state monitor.
-2. Real-time INA233 converted telemetry (VBUS in V, VSHUNT in mV, current in mA, power in mW).
-3. Raw PMBus register hex words (READ_VIN, MFR_READ_VSHUNT, READ_IIN, READ_PIN, READ_EIN).
+The main screen shows both channel voltages and currents, sensor/presence
+status, and the shared ALERT input. State of charge is marked unavailable
+until validated cell-specific lookup tables are supplied. Rotate to select a
+channel, then use the mode and current-limit menus. These menus are preview
+only: confirming a setting displays `CONTROL LOCKED`; no charge/discharge
+output can be enabled. The cycle timer and charge/discharge animation are
+inactive because no power cycle can be started. A double press returns to the
+main screen.
 
-Rotate the encoder to switch pages; press it for an audio acknowledgement. `g_ina233_sample_valid`, `g_ina233_sample`, and `g_oled_ready` are debugger-visible. A failed I2C transaction marks the sample invalid; power outputs remain in their safe states.
+`g_ina233_sample_valid` and `g_ina233_samples` expose per-channel samples for
+debugging, along with `g_oled_ready`. A failed transaction invalidates only
+the affected channel's sample. The power outputs remain off.
 
 ## Before implementing charging
 
@@ -81,5 +82,12 @@ and LiFePO4), shunt resistance and INA233 calibration, charge-current and
 temperature limits, sensor placement, cell balancing/monitoring, fault
 handling, and hardware over-current/over-voltage protections. A pack-level
 voltage reading alone cannot detect an individual series-cell over-voltage.
+The charge/discharge settings in the GUI are intentionally non-operational.
+`POWER_STAGE_CONTROL_ENABLED` is compile-time guarded off, and the firmware
+contains no path to energize a power stage. The supplied specification does
+not include validated state-of-charge tables for the exact cells, so the GUI
+reports SoC as unavailable rather than displaying an unsupported estimate.
+
 Do not enable charging until the full schematic, control-loop stability,
-fault response, and battery-specific limits have been reviewed and tested.
+fault response, and battery-specific limits have been independently reviewed
+and tested.
