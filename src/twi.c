@@ -24,7 +24,7 @@ static bool twi_wait_complete(void)
 		--timeout;
 	}
 
-	return timeout > 0u;
+	return (TWCR & _BV(TWINT)) != 0u;
 }
 
 static uint8_t twi_status(void)
@@ -58,9 +58,47 @@ static bool twi_read(uint8_t *value, bool acknowledge, uint8_t expected_status)
 	return true;
 }
 
-static void twi_stop(void)
+static bool twi_stop(void)
 {
+	uint16_t timeout = TWI_TIMEOUT_LOOPS;
+
 	TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWSTO);
+	while ((TWCR & _BV(TWSTO)) != 0u && timeout > 0u) {
+		--timeout;
+	}
+
+	return (TWCR & _BV(TWSTO)) == 0u;
+}
+
+bool twi_write_packet(uint8_t address, uint8_t control,
+	const uint8_t *data, uint8_t length)
+{
+	bool ok = false;
+	uint8_t index;
+
+	if (address > 0x7Fu || (length > 0u && data == 0)) {
+		return false;
+	}
+
+	if (!twi_start()
+		|| !twi_write((uint8_t)(address << 1), TWI_STATUS_SLA_W_ACK)
+		|| !twi_write(control, TWI_STATUS_DATA_W_ACK)) {
+		goto cleanup;
+	}
+
+	for (index = 0u; index < length; ++index) {
+		if (!twi_write(data[index], TWI_STATUS_DATA_W_ACK)) {
+			goto cleanup;
+		}
+	}
+
+	ok = true;
+
+cleanup:
+	if (!twi_stop()) {
+		ok = false;
+	}
+	return ok;
 }
 
 void twi_init(void)
@@ -94,6 +132,8 @@ bool twi_read_register_word(uint8_t address, uint8_t command, uint16_t *value)
 	ok = true;
 
 cleanup:
-	twi_stop();
+	if (!twi_stop()) {
+		ok = false;
+	}
 	return ok;
 }

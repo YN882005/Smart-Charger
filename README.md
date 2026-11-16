@@ -1,32 +1,34 @@
-# ATmega328P Smart Charger Firmware Skeleton
+# ATmega328P Smart Charger Firmware
 
-This repository contains an AVR-GCC project for an ATmega328P and INA233.
-It is a **monitor-only, non-charging skeleton**: the charge PWM output is held
-high (inactive for a direct P-channel MOSFET gate) and the discharge MOSFET
-output is held low. There is intentionally no path that enables either power
+This repository contains an AVR-GCC project for an ATmega328P, INA233, I2C
+OLED, HW-040 rotary encoder, and 2.3 kHz buzzer. It is **monitor-only and
+non-charging**. All four charge outputs are held high, all four discharge
+outputs are held low, and there is intentionally no path that enables a power
 stage.
 
-## Hardware assumptions to verify
+## Schematic pin mapping
 
 - The firmware assumes a 16 MHz ATmega328P clock; override `F_CPU` in the
   Makefile if the board clock differs.
-- INA233 I2C address defaults to `0x40`. Confirm the address straps and bus
-  voltage against the actual board.
-- The charge output is PB1/OC1A and the discharge output is PD7. The default
-  inactive levels assume PB1 directly represents an active-low P-MOSFET gate
-  command and PD7 an active-high N-MOSFET gate command. Verify the complete
-  gate-driver schematic and add external pull resistors so both stages remain
-  off while the MCU is reset, unpowered, or its pins are high-impedance.
-- Connect the INA233 to the ATmega328P TWI pins (PC4/SDA and PC5/SCL) with
-  correctly sized pull-ups. This firmware reads raw register words only; it
-  does not configure INA233 calibration or convert measurements to engineering
-  units.
+- The schematic maps CHG1-4 to PB1, PB2, PB3, and PD3; DSG1-4 map to PB0,
+  PB5, PB4, and PC0, respectively. Firmware initializes each output to its
+  inactive level before enabling the output driver.
+- Connect the INA233 and OLED to the shared I2C bus: PC4/SDA and PC5/SCL.
+  INA233 defaults to address `0x40`; the OLED defaults to `0x3C`. Confirm the
+  address straps, display controller compatibility (SSD1306), and bus
+  pull-ups.
+- The HW-040 signals in the schematic are CLK=PC1, DT=PC2, and switch/Alert=PD5.
+  The firmware enables internal pull-ups and uses pin-change interrupts for
+  rotation.
+- The buzzer control net is PD4. The firmware generates a 2.3 kHz tone using
+  Timer2; the schematic's transistor stage must drive the 5 V buzzer.
 
-These are firmware pin assumptions, not a validated power-stage design.
-An LC-filtered PWM gate drive, back-to-back MOSFET arrangement, battery
-protection, and resistor-discharge path must be reviewed and tested separately.
-Do not connect a battery or energize the power stage based only on this
-skeleton.
+Verify output polarity and the complete gate-driver schematic before
+programming. Add external pull resistors so every charge/discharge stage
+remains off while the MCU is reset, unpowered, or its pins are high-impedance.
+The firmware's inactive levels cannot substitute for hardware interlocks. This
+schematic-based mapping is not a validation of the power-stage design. Do not
+connect a battery or energize the power stage based only on this code.
 
 ## Build
 
@@ -43,18 +45,34 @@ The MCU and clock can be overridden, for example:
 make MCU=atmega328p F_CPU=8000000
 ```
 
+For a USBasp-compatible HW-437 programmer, a typical flash-only command is:
+
+```sh
+avrdude -c usbasp -p m328p -U flash:w:build/firmware.hex:i
+```
+
+Do not write fuse settings unless they have been checked against the board's
+actual clock and reset configuration.
+
 ## Firmware contents
 
 - `include/config.h`: board and safe-default configuration.
 - `include/board.h`, `src/board.c`: output initialization and safe-off controls.
 - `include/twi.h`, `src/twi.c`: bounded-timeout AVR TWI master and word reads.
 - `include/ina233.h`, `src/ina233.c`: INA233 raw register reads.
-- `src/main.c`: safe initialization and periodic measurement polling.
+- `include/ssd1306.h`, `src/ssd1306.c`: SSD1306 I2C display driver.
+- `include/encoder.h`, `src/encoder.c`: debounced encoder/button input.
+- `include/buzzer.h`, `src/buzzer.c`: non-blocking Timer2 buzzer tone.
+- `include/ui.h`, `src/ui.c`: status and raw measurement screens.
+- `src/main.c`: safe initialization, polling, and UI service.
 
-`g_ina233_sample_valid` and `g_ina233_sample` are debugger-visible. The sample
-contains raw register words, not scaled volts, amps, watts, watt-hours, or
-amp-hours. A failed I2C transaction marks the sample invalid; the power outputs
-remain in their safe states.
+The OLED shows a monitor-only status page and a second page of INA233 raw
+register words. Rotate the encoder to switch pages; press it for an audio
+acknowledgement. `g_ina233_sample_valid`, `g_ina233_sample`, and
+`g_oled_ready` are debugger-visible. The sample contains raw register words,
+not scaled volts, amps, watts, watt-hours, or amp-hours. A failed I2C
+transaction marks the sample invalid; power outputs remain in their safe
+states.
 
 ## Before implementing charging
 

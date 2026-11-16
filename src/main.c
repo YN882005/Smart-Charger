@@ -1,29 +1,66 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
 
 #include "board.h"
+#include "buzzer.h"
 #include "config.h"
+#include "encoder.h"
 #include "ina233.h"
 #include "twi.h"
+#include "ui.h"
 
 volatile ina233_raw_sample_t g_ina233_sample;
 volatile bool g_ina233_sample_valid;
+volatile bool g_oled_ready;
 
 int main(void)
 {
+	ina233_raw_sample_t sample = {0};
+	uint8_t measurement_ticks = 0u;
+	uint8_t display_ticks = 0u;
+	bool sample_valid;
+
 	board_init_safe();
 	twi_init();
+	encoder_init();
+	buzzer_init();
+
+	sample_valid = ina233_read_sample(&sample);
+	g_ina233_sample_valid = sample_valid;
+	if (sample_valid) {
+		g_ina233_sample = sample;
+	}
+
+	g_oled_ready = ui_init();
+	if (g_oled_ready) {
+		g_oled_ready = ui_render(sample_valid, &sample);
+	}
+	sei();
 
 	for (;;) {
-		ina233_raw_sample_t sample;
+		encoder_event_t event = encoder_poll();
 
-		board_outputs_safe();
-		g_ina233_sample_valid = ina233_read_sample(&sample);
-		if (g_ina233_sample_valid) {
-			g_ina233_sample = sample;
+		if (event != ENCODER_EVENT_NONE) {
+			ui_handle_encoder_event(event);
 		}
 
-		_delay_ms(100);
+		if (++measurement_ticks >= 100u) {
+			measurement_ticks = 0u;
+			sample_valid = ina233_read_sample(&sample);
+			g_ina233_sample_valid = sample_valid;
+			if (sample_valid) {
+				g_ina233_sample = sample;
+			}
+			board_outputs_safe();
+		}
+
+		if (++display_ticks >= 50u) {
+			display_ticks = 0u;
+			g_oled_ready = ui_render(g_ina233_sample_valid, &sample);
+		}
+
+		_delay_ms(10);
 	}
 }
