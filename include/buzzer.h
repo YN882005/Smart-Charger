@@ -4,6 +4,6 @@
 #include <stdint.h>
 
 void buzzer_init(void);
-void buzzer_beep(uint16_t duration_ms);
+void buzzer_beep(uint8_t duration_ms);
 
 #endif

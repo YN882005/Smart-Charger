@@ -1,6 +1,8 @@
 #ifndef ENCODER_H
 #define ENCODER_H
 
+#include <stdint.h>
+
 typedef enum {
 	ENCODER_EVENT_NONE = 0,
 	ENCODER_EVENT_CW,

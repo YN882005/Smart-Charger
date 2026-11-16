@@ -57,15 +57,15 @@ actual clock and reset configuration.
 ## Firmware contents
 
 - `include/config.h`: board and safe-default configuration.
-- `include/board.h`, `src/board.c`: output initialization and safe-off controls.
+- `include/Charging.h`, `src/Charging.c`: charging stage output initialization and safe-off controls.
+- `include/Discharging.h`, `src/Discharging.c`: discharging stage output initialization and safe-off controls.
+- `include/Encoder.h`, `src/Encoder.c`: debounced rotary encoder and switch input.
+- `include/Buzzer.h`, `src/Buzzer.c`: non-blocking Timer2 buzzer tone.
+- `include/OLED Screen.h`, `src/OLED Screen.c`: OLED screen driver and telemetry display pages.
 - `include/twi.h`, `src/twi.c`: bounded-timeout AVR TWI master, word/byte/block transfers, and PMBus primitives.
-- `lib/infinityPV_INA233`: official infinityPV INA233 Arduino library repository (including `infinityPV_INA233_Read_voltages.ino`).
 - `include/infinityPV_INA233.h`, `src/infinityPV_INA233.c`: INA233 PMBus driver, coefficients, calibration, and unit conversion methods (`getBusVoltage_V()`, `getShuntVoltage_mV()`, `getCurrent_mA()`, `getPower_mW()`, `getEnergy_raw()`).
 - `include/ina233.h`, `src/ina233.c`: INA233 device abstraction and sample acquisition.
-- `include/ssd1306.h`, `src/ssd1306.c`: SSD1306 I2C display driver.
-- `include/encoder.h`, `src/encoder.c`: debounced encoder/button input.
-- `include/buzzer.h`, `src/buzzer.c`: non-blocking Timer2 buzzer tone.
-- `include/ui.h`, `src/ui.c`: status, telemetry (V, mV, mA, mW), and raw register measurement screens.
+- `lib/infinityPV_INA233`: official infinityPV INA233 Arduino library repository (including `infinityPV_INA233_Read_voltages.ino`).
 - `src/main.c`: safe initialization, polling, and UI service.
 
 The OLED provides three screens navigated with the rotary encoder:
