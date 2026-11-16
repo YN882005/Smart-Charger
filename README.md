@@ -58,21 +58,22 @@ actual clock and reset configuration.
 
 - `include/config.h`: board and safe-default configuration.
 - `include/board.h`, `src/board.c`: output initialization and safe-off controls.
-- `include/twi.h`, `src/twi.c`: bounded-timeout AVR TWI master and word reads.
-- `include/ina233.h`, `src/ina233.c`: INA233 raw register reads.
+- `include/twi.h`, `src/twi.c`: bounded-timeout AVR TWI master, word/byte/block transfers, and PMBus primitives.
+- `lib/infinityPV_INA233`: official infinityPV INA233 Arduino library repository (including `infinityPV_INA233_Read_voltages.ino`).
+- `include/infinityPV_INA233.h`, `src/infinityPV_INA233.c`: INA233 PMBus driver, coefficients, calibration, and unit conversion methods (`getBusVoltage_V()`, `getShuntVoltage_mV()`, `getCurrent_mA()`, `getPower_mW()`, `getEnergy_raw()`).
+- `include/ina233.h`, `src/ina233.c`: INA233 device abstraction and sample acquisition.
 - `include/ssd1306.h`, `src/ssd1306.c`: SSD1306 I2C display driver.
 - `include/encoder.h`, `src/encoder.c`: debounced encoder/button input.
 - `include/buzzer.h`, `src/buzzer.c`: non-blocking Timer2 buzzer tone.
-- `include/ui.h`, `src/ui.c`: status and raw measurement screens.
+- `include/ui.h`, `src/ui.c`: status, telemetry (V, mV, mA, mW), and raw register measurement screens.
 - `src/main.c`: safe initialization, polling, and UI service.
 
-The OLED shows a monitor-only status page and a second page of INA233 raw
-register words. Rotate the encoder to switch pages; press it for an audio
-acknowledgement. `g_ina233_sample_valid`, `g_ina233_sample`, and
-`g_oled_ready` are debugger-visible. The sample contains raw register words,
-not scaled volts, amps, watts, watt-hours, or amp-hours. A failed I2C
-transaction marks the sample invalid; power outputs remain in their safe
-states.
+The OLED provides three screens navigated with the rotary encoder:
+1. System status and charger safe-state monitor.
+2. Real-time INA233 converted telemetry (VBUS in V, VSHUNT in mV, current in mA, power in mW).
+3. Raw PMBus register hex words (READ_VIN, MFR_READ_VSHUNT, READ_IIN, READ_PIN, READ_EIN).
+
+Rotate the encoder to switch pages; press it for an audio acknowledgement. `g_ina233_sample_valid`, `g_ina233_sample`, and `g_oled_ready` are debugger-visible. A failed I2C transaction marks the sample invalid; power outputs remain in their safe states.
 
 ## Before implementing charging
 

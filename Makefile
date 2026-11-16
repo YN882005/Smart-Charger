@@ -10,6 +10,7 @@ SOURCES := \
 	src/board.c \
 	src/twi.c \
 	src/ina233.c \
+	src/infinityPV_INA233.c \
 	src/encoder.c \
 	src/buzzer.c \
 	src/ssd1306.c \
@@ -17,7 +18,7 @@ SOURCES := \
 
 CFLAGS := -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL -std=gnu11 -Os \
 	-Wall -Wextra -Werror -Iinclude -ffunction-sections -fdata-sections
-LDFLAGS := -mmcu=$(MCU) -Wl,--gc-sections
+LDFLAGS := -mmcu=$(MCU) -Wl,--gc-sections -lm
 
 .PHONY: all clean size
 
@@ -26,7 +27,7 @@ all: $(BUILD_DIR)/firmware.hex
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(BUILD_DIR)/firmware.elf: $(SOURCES) include/config.h include/board.h include/twi.h include/ina233.h include/encoder.h include/buzzer.h include/ssd1306.h include/ui.h | $(BUILD_DIR)
+$(BUILD_DIR)/firmware.elf: $(SOURCES) include/config.h include/board.h include/twi.h include/ina233.h include/infinityPV_INA233.h include/encoder.h include/buzzer.h include/ssd1306.h include/ui.h | $(BUILD_DIR)
 	$(AVR_CC) $(CFLAGS) $(SOURCES) $(LDFLAGS) -o $@
 	$(AVR_SIZE) $@
 

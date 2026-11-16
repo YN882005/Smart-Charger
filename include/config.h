@@ -6,6 +6,8 @@
 #endif
 
 #define INA233_I2C_ADDRESS 0x40u
+#define INA233_R_SHUNT_OHMS 0.05f
+#define INA233_I_MAX_AMPS 2.0f
 #define OLED_I2C_ADDRESS 0x3Cu
 #define TWI_CLOCK_HZ 100000UL
 

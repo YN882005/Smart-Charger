@@ -26,6 +26,7 @@ int main(void)
 	twi_init();
 	encoder_init();
 	buzzer_init();
+	ina233_device_init(INA233_I2C_ADDRESS, INA233_R_SHUNT_OHMS, INA233_I_MAX_AMPS);
 
 	sample_valid = ina233_read_sample(&sample);
 	g_ina233_sample_valid = sample_valid;

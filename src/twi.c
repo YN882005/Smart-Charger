@@ -137,3 +137,147 @@ cleanup:
 	}
 	return ok;
 }
+
+bool twi_read_register_byte(uint8_t address, uint8_t command, uint8_t *value)
+{
+	bool ok = false;
+
+	if (value == 0 || address > 0x7Fu) {
+		return false;
+	}
+
+	if (!twi_start()
+		|| !twi_write((uint8_t)(address << 1), TWI_STATUS_SLA_W_ACK)
+		|| !twi_write(command, TWI_STATUS_DATA_W_ACK)
+		|| !twi_start()
+		|| !twi_write((uint8_t)((address << 1) | 1u), TWI_STATUS_SLA_R_ACK)
+		|| !twi_read(value, false, TWI_STATUS_DATA_R_NACK)) {
+		goto cleanup;
+	}
+
+	ok = true;
+
+cleanup:
+	if (!twi_stop()) {
+		ok = false;
+	}
+	return ok;
+}
+
+bool twi_write_register_word(uint8_t address, uint8_t command, uint16_t value)
+{
+	bool ok = false;
+
+	if (address > 0x7Fu) {
+		return false;
+	}
+
+	if (!twi_start()
+		|| !twi_write((uint8_t)(address << 1), TWI_STATUS_SLA_W_ACK)
+		|| !twi_write(command, TWI_STATUS_DATA_W_ACK)
+		|| !twi_write((uint8_t)(value & 0xFFu), TWI_STATUS_DATA_W_ACK)
+		|| !twi_write((uint8_t)((value >> 8) & 0xFFu), TWI_STATUS_DATA_W_ACK)) {
+		goto cleanup;
+	}
+
+	ok = true;
+
+cleanup:
+	if (!twi_stop()) {
+		ok = false;
+	}
+	return ok;
+}
+
+bool twi_write_register_byte(uint8_t address, uint8_t command, uint8_t value)
+{
+	bool ok = false;
+
+	if (address > 0x7Fu) {
+		return false;
+	}
+
+	if (!twi_start()
+		|| !twi_write((uint8_t)(address << 1), TWI_STATUS_SLA_W_ACK)
+		|| !twi_write(command, TWI_STATUS_DATA_W_ACK)
+		|| !twi_write(value, TWI_STATUS_DATA_W_ACK)) {
+		goto cleanup;
+	}
+
+	ok = true;
+
+cleanup:
+	if (!twi_stop()) {
+		ok = false;
+	}
+	return ok;
+}
+
+bool twi_send_command(uint8_t address, uint8_t command)
+{
+	bool ok = false;
+
+	if (address > 0x7Fu) {
+		return false;
+	}
+
+	if (!twi_start()
+		|| !twi_write((uint8_t)(address << 1), TWI_STATUS_SLA_W_ACK)
+		|| !twi_write(command, TWI_STATUS_DATA_W_ACK)) {
+		goto cleanup;
+	}
+
+	ok = true;
+
+cleanup:
+	if (!twi_stop()) {
+		ok = false;
+	}
+	return ok;
+}
+
+bool twi_read_block(uint8_t address, uint8_t command, uint8_t *data, uint8_t max_length, uint8_t *actual_length)
+{
+	uint8_t block_size = 0u;
+	uint8_t i;
+	bool ok = false;
+
+	if (data == 0 || address > 0x7Fu || max_length == 0u) {
+		return false;
+	}
+
+	if (!twi_start()
+		|| !twi_write((uint8_t)(address << 1), TWI_STATUS_SLA_W_ACK)
+		|| !twi_write(command, TWI_STATUS_DATA_W_ACK)
+		|| !twi_start()
+		|| !twi_write((uint8_t)((address << 1) | 1u), TWI_STATUS_SLA_R_ACK)) {
+		goto cleanup;
+	}
+
+	if (!twi_read(&block_size, true, TWI_STATUS_DATA_R_ACK)) {
+		goto cleanup;
+	}
+
+	if (actual_length != 0) {
+		*actual_length = block_size;
+	}
+
+	for (i = 0u; i < block_size; ++i) {
+		bool ack = (i + 1u < block_size);
+		uint8_t b = 0u;
+		if (!twi_read(&b, ack, ack ? TWI_STATUS_DATA_R_ACK : TWI_STATUS_DATA_R_NACK)) {
+			goto cleanup;
+		}
+		if (i < max_length) {
+			data[i] = b;
+		}
+	}
+
+	ok = true;
+
+cleanup:
+	if (!twi_stop()) {
+		ok = false;
+	}
+	return ok;
+}
