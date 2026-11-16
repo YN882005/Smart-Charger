@@ -11,7 +11,6 @@ SOURCES := \
 	src/Discharging.c \
 	src/twi.c \
 	src/ina233.c \
-	src/infinityPV_INA233.c \
 	src/Encoder.c \
 	src/Buzzer.c \
 	src/OLED_Screen.c
@@ -22,7 +21,6 @@ HEADERS := \
 	include/Discharging.h \
 	include/twi.h \
 	include/ina233.h \
-	include/infinityPV_INA233.h \
 	include/Encoder.h \
 	include/Buzzer.h \
 	include/OLED_Screen.h

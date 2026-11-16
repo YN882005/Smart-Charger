@@ -63,9 +63,7 @@ actual clock and reset configuration.
 - `include/Buzzer.h`, `src/Buzzer.c`: non-blocking Timer2 buzzer tone.
 - `include/OLED Screen.h`, `src/OLED Screen.c`: OLED screen driver and telemetry display pages.
 - `include/twi.h`, `src/twi.c`: bounded-timeout AVR TWI master, word/byte/block transfers, and PMBus primitives.
-- `include/infinityPV_INA233.h`, `src/infinityPV_INA233.c`: INA233 PMBus driver, coefficients, calibration, and unit conversion methods (`getBusVoltage_V()`, `getShuntVoltage_mV()`, `getCurrent_mA()`, `getPower_mW()`, `getEnergy_raw()`).
-- `include/ina233.h`, `src/ina233.c`: INA233 device abstraction and sample acquisition.
-- `lib/infinityPV_INA233`: official infinityPV INA233 Arduino library repository (including `infinityPV_INA233_Read_voltages.ino`).
+- `include/ina233.h`, `src/ina233.c`: INA233 PMBus driver, calibration, register sampling, and unit conversion.
 - `src/main.c`: safe initialization, polling, and UI service.
 
 The OLED provides three screens navigated with the rotary encoder:

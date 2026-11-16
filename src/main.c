@@ -10,7 +10,6 @@
 #include "OLED Screen.h"
 #include "config.h"
 #include "ina233.h"
-#include "twi.h"
 
 volatile ina233_raw_sample_t g_ina233_sample;
 volatile bool g_ina233_sample_valid;
@@ -25,12 +24,11 @@ int main(void)
 
 	charging_init_safe();
 	discharging_init_safe();
-	twi_init();
 	encoder_init();
 	buzzer_init();
-	ina233_device_init(INA233_I2C_ADDRESS, INA233_R_SHUNT_OHMS, INA233_I_MAX_AMPS);
 
-	sample_valid = ina233_read_sample(&sample);
+	sample_valid = ina233_device_init(INA233_I2C_ADDRESS, INA233_R_SHUNT_OHMS,
+		INA233_I_MAX_AMPS) && ina233_read_sample(&sample);
 	g_ina233_sample_valid = sample_valid;
 	if (sample_valid) {
 		g_ina233_sample = sample;
