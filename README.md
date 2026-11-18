@@ -54,7 +54,7 @@ per channel.
 ## INA233 Channels
 
 | Channel | INA233 | Address | Chemistry | Full | Storage | Cutoff | Trickle |
-|---|---|---|---|---:|---:|---:|---:|
+|---|---|---|---|---|---|---|---|
 | CH1 | U6 | 0x40 | Li-ion | 4.20 V | 3.80 V | 3.00 V | < 2.80 V -> 3.00 V |
 | CH2 | U7 | 0x45 | LiFePO4 | 3.65 V | 3.30 V | 2.50 V | < 2.30 V -> 2.50 V |
 | CH3 | U8 | 0x41 | Configurable | -- | -- | -- | -- |
