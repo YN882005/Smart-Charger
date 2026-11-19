@@ -14,6 +14,8 @@
 
 <item itemtype="Resistor" CircId="Resistor-15" mainComp="false" ShowProp="Resistance" Show_id="false" Show_Val="true" Pos="-196,-108" rotation="90" hflip="1" vflip="1" label="Resistor-15" idLabPos="-16,-24" labelrot="0" valLabPos="-16,6" valLabRot="0" Resistance="4.7 kΩ" />
 
+<item itemtype="KY040" CircId="KY040-17" mainComp="false" Show_id="false" Show_Val="false" Pos="32,-68" rotation="90" hflip="1" vflip="1" label="KY040-17" idLabPos="-34,20" labelrot="-90" valLabPos="-16,20" valLabRot="0" Steps="5" />
+
 <item itemtype="Node" CircId="Node-4" mainComp="false" Pos="-124,-44" />
 
 <item itemtype="Node" CircId="Node-8" mainComp="false" Pos="-96,-96" />
@@ -53,5 +55,11 @@
 <item itemtype="Connector" uid="Connector-40" startpinid="mega328-1-PORTV1" endpinid="Node-4-0" pointList="-124,-48,-124,-44" />
 
 <item itemtype="Connector" uid="Connector-44" startpinid="Resistor-7-lPin" endpinid="Node-10-0" pointList="-96,-168,-96,-172,-104,-172" />
+
+<item itemtype="Connector" uid="Connector-45" startpinid="KY040-17-clk" endpinid="mega328-1-PORTC1" pointList="-4,-64,-84,-64,-84,-72,-124,-72" />
+
+<item itemtype="Connector" uid="Connector-46" startpinid="KY040-17-dt" endpinid="mega328-1-PORTC2" pointList="-4,-72,-80,-72,-80,-80,-124,-80" />
+
+<item itemtype="Connector" uid="Connector-47" startpinid="KY040-17-sw" endpinid="mega328-1-PORTC3" pointList="-4,-80,-72,-80,-72,-88,-124,-88" />
 
 </circuit>

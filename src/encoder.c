@@ -18,6 +18,7 @@ static int8_t s_value_accum = 0;
 /* Switch state machine variables */
 static bool s_btn_latched = false;
 static bool s_click_pending = false;
+static bool s_suppress_click_on_release = false;
 static uint32_t s_release_millis = 0u;
 static uint8_t s_press_samples = 0u;
 
@@ -54,6 +55,7 @@ void encoder_init(void)
 	s_value_accum = 0;
 	s_btn_latched = false;
 	s_click_pending = false;
+	s_suppress_click_on_release = false;
 	s_release_millis = 0u;
 	s_press_samples = 0u;
 
@@ -140,6 +142,7 @@ encoder_event_t encoder_poll(void)
 			/* If button pressed while a click is pending within 400ms -> double press! */
 			if (s_click_pending && (now - s_release_millis <= ENCODER_DOUBLE_CLICK_MS)) {
 				s_click_pending = false;
+				s_suppress_click_on_release = true;
 				return ENCODER_EVENT_DOUBLE_PRESS;
 			}
 		}
@@ -147,8 +150,12 @@ encoder_event_t encoder_poll(void)
 		s_press_samples = 0u;
 		if (s_btn_latched) {
 			s_btn_latched = false;
-			s_click_pending = true;
-			s_release_millis = now;
+			if (s_suppress_click_on_release) {
+				s_suppress_click_on_release = false;
+			} else {
+				s_click_pending = true;
+				s_release_millis = now;
+			}
 		}
 	}
 

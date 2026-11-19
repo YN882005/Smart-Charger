@@ -97,6 +97,19 @@ static const uint8_t bmp_battery_dead[5][BATTERY_WIDTH] PROGMEM = {
 	{0xFF,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0xFF}
 };
 
+static const uint8_t bmp_battery_segment_masks[5][5] PROGMEM = {
+	/* Segment 1 (bottom), pages 1..5 */
+	{0x00,0x00,0x00,0x00,0x3Eu},
+	/* Segment 2 */
+	{0x00,0x00,0x00,0xF8u,0x00},
+	/* Segment 3 */
+	{0x00,0x00,0xE0u,0x03u,0x00},
+	/* Segment 4 */
+	{0x00,0x80u,0x0Fu,0x00,0x00},
+	/* Segment 5 (top) */
+	{0x00,0x3Cu,0x00,0x00,0x00}
+};
+
 /* -------------------------------------------------------------------------
  * UI Screen State Machine
  * ------------------------------------------------------------------------- */
@@ -291,68 +304,50 @@ static void render_battery_icon_page(uint8_t channel, uint8_t page, uint8_t col_
 		return;
 	}
 
-	/* Normal battery frame:
-	 * Page 1 (p_idx 0): Top cap (columns 7..12 have bits 0..2 set) + rim
-	 * Page 2..4: Left and right walls at columns 2 and 17
-	 * Page 5 (p_idx 4): Bottom rim (bit 7 set across the battery width) */
+	/* Keep the battery silhouette aligned with the missing-battery icon. */
 	for (uint8_t c = 0u; c < BATTERY_WIDTH; ++c) {
 		uint8_t b = 0x00u;
 
 		if (p_idx == 0u) {
-			if (c >= 7u && c <= 13u) b |= 0x03u; /* Centered, widened top of the terminal */
-			if (c >= 8u && c <= 12u) b |= 0x7Cu; /* Narrow stem meets the battery rim */
-			if (c >= 2u && c <= 17u) b |= 0x80u; /* Top border */
-			if (c == 2u || c == 17u) b |= 0xF8u;
+			if (c >= 7u && c <= 13u) b |= 0xE0u;
 		} else if (p_idx == 4u) {
-			if (c >= 2u && c <= 17u) b |= 0x80u; /* Bottom border */
-			if (c == 2u || c == 17u) b |= 0x7Fu;
+			if (c == 0u || c == 19u) b |= 0xFFu;
+			else b |= 0x80u;
 		} else {
-			if (c == 2u || c == 17u) b |= 0xFFu; /* Left / right outer walls */
+			if (c == 0u || c == 19u) b |= 0xFFu;
+			else if (p_idx == 1u) b |= 0x01u;
 		}
 
-		/* Determine if this segment should be filled:
-		 * Page 5 (p_idx 4) holds Segment 1 (bottom)
-		 * Page 4 (p_idx 3) holds Segment 2
-		 * Page 3 (p_idx 2) holds Segment 3
-		 * Page 2 (p_idx 1) holds Segment 4
-		 * Page 1 (p_idx 0) holds Segment 5 (top) */
-		uint8_t seg_num = 5u - p_idx; /* 1..5 */
-		bool fill_bar = false;
+		for (uint8_t seg_num = 1u; seg_num <= 5u; ++seg_num) {
+			bool fill_bar = false;
 
-		if (chg == CHG_STATE_TRICKLE) {
-			/* Trickle: outline + ONLY bottom-most segment toggles ON/OFF every 300 ms */
-			if (seg_num == 1u && g_trickle_blink) {
-				fill_bar = true;
-			}
-		} else if (chg == CHG_STATE_CC || chg == CHG_STATE_CV) {
-			/* Normal charging: solid bars up to current SoC + upper bars fill & flash upward every 350 ms */
-			if (seg_num <= seg_count) {
-				fill_bar = true;
-			} else {
-				uint8_t flow_bar = seg_count + 1u + g_chg_flow_step;
-				if (flow_bar > 5u) flow_bar = seg_count + 1u;
-				if (seg_num == flow_bar) {
+			if (chg == CHG_STATE_TRICKLE) {
+				if (seg_num == 1u && g_trickle_blink) {
 					fill_bar = true;
 				}
-			}
-		} else if (dsg == DSG_STATE_ACTIVE) {
-			/* Discharging: solid bars up to current SoC + top-most active bar flashes every 500 ms */
-			if (seg_num < seg_count) {
+			} else if (chg == CHG_STATE_CC || chg == CHG_STATE_CV) {
+				if (seg_num <= seg_count) {
+					fill_bar = true;
+				} else {
+					uint8_t flow_bar = seg_count + 1u + g_chg_flow_step;
+					if (flow_bar > 5u) flow_bar = seg_count + 1u;
+					if (seg_num == flow_bar) {
+						fill_bar = true;
+					}
+				}
+			} else if (dsg == DSG_STATE_ACTIVE) {
+				if (seg_num < seg_count) {
+					fill_bar = true;
+				} else if (seg_num == seg_count && g_dsg_blink) {
+					fill_bar = true;
+				}
+			} else if (seg_num <= seg_count) {
 				fill_bar = true;
-			} else if (seg_num == seg_count && g_dsg_blink) {
-				fill_bar = true;
 			}
-		} else {
-			/* Idle / Done: static solid bars matching current SoC */
-			if (seg_num <= seg_count) {
-				fill_bar = true;
-			}
-		}
 
-		if (fill_bar && c >= 4u && c <= 15u) {
-			if (p_idx == 0u)      b |= 0x70u; /* Bar in page 1 */
-			else if (p_idx == 4u) b |= 0x3Eu; /* Bar in page 5 */
-			else                  b |= 0x7Eu; /* Bar in pages 2..4 */
+			if (fill_bar && c >= 2u && c <= 17u) {
+				b |= pgm_read_byte(&bmp_battery_segment_masks[seg_num - 1u][p_idx]);
+			}
 		}
 
 		page_buffer[col_start + c] = b;
@@ -374,7 +369,7 @@ static bool render_dashboard_screen(const bool sample_valid[INA233_CHANNEL_COUNT
 	}
 	if (now - g_anim_350ms_timer >= 350u) {
 		g_anim_350ms_timer = now;
-		g_chg_flow_step = (g_chg_flow_step + 1u) % 4u;
+		g_chg_flow_step = (g_chg_flow_step + 1u) % 5u;
 	}
 	if (now - g_anim_500ms_timer >= 500u) {
 		g_anim_500ms_timer = now;
@@ -509,136 +504,119 @@ static bool render_dashboard_screen(const bool sample_valid[INA233_CHANNEL_COUNT
 static bool render_menu_screen(void)
 {
 	char line[22];
+	uint8_t page_offset = (current_screen == UI_SCREEN_CAPACITY_RESULT) ? 0u : 1u;
 
 	for (uint8_t page = 0u; page < SSD1306_PAGE_COUNT; ++page) {
+		uint8_t content_page = page;
+		if (page_offset != 0u) {
+			content_page = (page == 0u) ? UINT8_MAX : (uint8_t)(page - page_offset);
+		}
 		memset(page_buffer, 0x00, SSD1306_WIDTH);
 
 		switch (current_screen) {
 		case UI_SCREEN_CHANNEL:
-			if (page == 0u) draw_text_to_page(16u, "[SELECT CHANNEL]");
-			else if (page == 2u) draw_text_to_page(8u, (selected_channel == 0u) ? "> [CH1] Li-Ion" : "  [CH1] Li-Ion");
-			else if (page == 4u) draw_text_to_page(8u, (selected_channel == 1u) ? "> [CH2] LiFePO4" : "  [CH2] LiFePO4");
-			else if (page == 6u) draw_text_to_page(4u, "ROTATE=CH  SW=ENTER");
-			else if (page == 7u) draw_text_to_page(16u, "DOUBLE-SW: HOME");
+			if (content_page == 0u) draw_text_to_page(16u, "[SELECT CHANNEL]");
+			else if (content_page == 2u) draw_text_to_page(8u, (selected_channel == 0u) ? "> [CH1] Li-Ion" : "  [CH1] Li-Ion");
+			else if (content_page == 4u) draw_text_to_page(8u, (selected_channel == 1u) ? "> [CH2] LiFePO4" : "  [CH2] LiFePO4");
 			break;
 
 		case UI_SCREEN_FUNCTION:
-			if (page == 0u) {
+			if (content_page == 0u) {
 				snprintf(line, sizeof(line), "CH%u FUNCTION MENU", selected_channel + 1u);
 				draw_text_to_page(4u, line);
-			} else if (page >= 1u && page <= 5u) {
+			} else if (content_page >= 1u && content_page <= 5u) {
 				static const char f0[] PROGMEM = "[Charge]";
 				static const char f1[] PROGMEM = "[Discharge]";
 				static const char f2[] PROGMEM = "[Storage]";
 				static const char f3[] PROGMEM = "[Capacity Test]";
 				static const char f4[] PROGMEM = "[Stop / Idle]";
 				static const char *const f_names[] PROGMEM = { f0, f1, f2, f3, f4 };
-				uint8_t f_idx = page - 1u;
+				uint8_t f_idx = content_page - 1u;
 				draw_text_to_page(6u, (g_function_index == f_idx) ? "> " : "  ");
 				draw_text_p_to_page(18u, (PGM_P)pgm_read_word(&f_names[f_idx]));
-			} else if (page == 7u) {
-				draw_text_to_page(16u, "DOUBLE-SW: HOME");
 			}
 			break;
 
 		case UI_SCREEN_SUB_CHARGE:
-			if (page == 0u) {
+			if (content_page == 0u) {
 				snprintf(line, sizeof(line), "CH%u CHARGE CURRENT", selected_channel + 1u);
 				draw_text_to_page(4u, line);
-			} else if (page == 2u) {
+			} else if (content_page == 2u) {
 				snprintf(line, sizeof(line), "CURRENT: %u mA", selected_current_limit[selected_channel]);
 				draw_text_to_page(10u, line);
-			} else if (page == 4u) {
+			} else if (content_page == 6u) {
 				draw_text_to_page(8u, "(100 .. 1200 mA)");
-			} else if (page == 6u) {
-				draw_text_to_page(4u, "ROTATE=ADJ  SW=START");
-			} else if (page == 7u) {
-				draw_text_to_page(16u, "DOUBLE-SW: HOME");
 			}
 			break;
 
 		case UI_SCREEN_SUB_DISCHARGE:
-			if (page == 0u) {
+			if (content_page == 0u) {
 				snprintf(line, sizeof(line), "CH%u DSG CUTOFF", selected_channel + 1u);
 				draw_text_to_page(10u, line);
-			} else if (page == 2u) {
+			} else if (content_page == 2u) {
 				uint16_t cut = discharging_get_cutoff_menu_item(selected_channel, selected_cutoff_index[selected_channel]);
 				if (selected_cutoff_index[selected_channel] == 0u) {
 					snprintf(line, sizeof(line), "TARGET: MAX (%u.%02uV)", cut/1000u, (cut%1000u)/10u);
 				} else {
 					snprintf(line, sizeof(line), "TARGET: %u.%02u V", cut/1000u, (cut%1000u)/10u);
 				}
-				draw_text_to_page(4u, line);
-			} else if (page == 4u) {
-				draw_text_to_page(8u, "(WRAP-AROUND LIST)");
-			} else if (page == 6u) {
-				draw_text_to_page(4u, "ROTATE=SEL  SW=START");
-			} else if (page == 7u) {
-				draw_text_to_page(16u, "DOUBLE-SW: HOME");
+				draw_text_to_page(6u, line);
 			}
 			break;
 
 		case UI_SCREEN_SUB_STORAGE:
-			if (page == 0u) {
+			if (content_page == 0u) {
 				snprintf(line, sizeof(line), "CH%u STORAGE MODE", selected_channel + 1u);
 				draw_text_to_page(10u, line);
-			} else if (page == 2u) {
+			} else if (content_page == 2u) {
 				uint16_t v_tgt = (selected_channel == 0u) ? CH1_STORAGE_MV : CH2_STORAGE_MV;
 				snprintf(line, sizeof(line), "TARGET: %u.%02u V", v_tgt/1000u, (v_tgt%1000u)/10u);
 				draw_text_to_page(12u, line);
-			} else if (page == 4u) {
+			} else if (content_page == 4u) {
 				snprintf(line, sizeof(line), "CHG LIMIT: %u mA", selected_current_limit[selected_channel]);
 				draw_text_to_page(8u, line);
-			} else if (page == 6u) {
-				draw_text_to_page(4u, "ROTATE=ADJ  SW=START");
-			} else if (page == 7u) {
-				draw_text_to_page(16u, "DOUBLE-SW: HOME");
 			}
 			break;
 
 		case UI_SCREEN_SUB_CAPACITY:
-			if (page == 0u) {
+			if (content_page == 0u) {
 				snprintf(line, sizeof(line), "CH%u CAPACITY TEST", selected_channel + 1u);
 				draw_text_to_page(4u, line);
-			} else if (page == 2u) {
+			} else if (content_page == 2u) {
 				draw_text_to_page(8u, "STAGE 1: PRE-DSG");
-			} else if (page == 3u) {
+			} else if (content_page == 3u) {
 				snprintf(line, sizeof(line), "STAGE 2: CHG %u mA", selected_current_limit[selected_channel]);
 				draw_text_to_page(8u, line);
-			} else if (page == 5u) {
-				draw_text_to_page(4u, "ROTATE=ADJ  SW=START");
-			} else if (page == 7u) {
-				draw_text_to_page(16u, "DOUBLE-SW: HOME");
 			}
 			break;
 
 		case UI_SCREEN_CAPACITY_RESULT:
-			if (page == 0u) {
+			if (content_page == 0u) {
 				snprintf(line, sizeof(line), "CH%u CAPACITY RESULT", selected_channel + 1u);
 				draw_text_to_page(4u, line);
-			} else if (page == 2u) {
+			} else if (content_page == 2u) {
 				capacity_state_t cs = capacity_get_state(selected_channel);
 				const char *st_str = "COMPLETE";
 				if (cs == CAP_STATE_STAGE1_DISCHARGE) st_str = "STAGE 1 DSG";
 				else if (cs == CAP_STATE_STAGE2_CHARGE) st_str = "STAGE 2 CHG";
 				snprintf(line, sizeof(line), "STAGE: %s", st_str);
 				draw_text_to_page(6u, line);
-			} else if (page == 3u) {
+			} else if (content_page == 3u) {
 				char tbuf[12];
 				format_timer_str(tbuf, sizeof(tbuf), capacity_get_stage2_elapsed_ms(selected_channel));
 				snprintf(line, sizeof(line), "TIME:  %s", tbuf);
 				draw_text_to_page(6u, line);
-			} else if (page == 4u) {
+			} else if (content_page == 4u) {
 				float wh = capacity_measured_energy_wh(selected_channel);
 				uint16_t wh_int = (uint16_t)wh;
 				uint16_t wh_dec = (uint16_t)((wh - (float)wh_int) * 100.0f);
 				snprintf(line, sizeof(line), "ENERGY: %u.%02u Wh", wh_int, wh_dec);
 				draw_text_to_page(6u, line);
-			} else if (page == 5u) {
+			} else if (content_page == 5u) {
 				uint32_t mah = capacity_measured_mah(selected_channel);
 				snprintf(line, sizeof(line), "CAP:    %lu mAh", (unsigned long)mah);
 				draw_text_to_page(6u, line);
-			} else if (page == 7u) {
+			} else if (content_page == 7u) {
 				draw_text_to_page(36u, "[ PRESS OK ]");
 			}
 			break;
